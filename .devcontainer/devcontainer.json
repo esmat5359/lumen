@@ -1,0 +1,14 @@
+{
+  "name": "Lumen (GenLayer Intelligent Contract)",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.12" }
+  },
+  "postCreateCommand": "pip install --user -r requirements.txt && npm --prefix e2e ci && npm --prefix frontend ci",
+  "forwardPorts": [5173],
+  "portsAttributes": { "5173": { "label": "Lumen frontend (vite)" } },
+  "customizations": {
+    "codespaces": { "openFiles": ["docs/TESTING.md", "e2e/README.md"] },
+    "vscode": { "extensions": ["ms-python.python", "dbaeumer.vscode-eslint"] }
+  }
+}
