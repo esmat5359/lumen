@@ -1,0 +1,42 @@
+name: live-e2e
+
+# Runs the live end-to-end scenarios on Studionet and commits the report to evidence/live-e2e/.
+# Start it by hand: Actions > live-e2e > Run workflow. A run takes about 30 to 45 minutes.
+on:
+  workflow_dispatch:
+    inputs:
+      scenarios:
+        description: "Scenarios to run (comma separated)"
+        default: "adversarial,kept,broken,retract,directory"
+      contract:
+        description: "Use this contract address instead of deploying a new one (optional)"
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm --prefix e2e ci
+      - name: Live run on Studionet
+        working-directory: e2e
+        env:
+          E2E_SCENARIOS: ${{ inputs.scenarios }}
+          LUMEN_ADDRESS: ${{ inputs.contract }}
+          E2E_COMMIT: push
+        run: |
+          git config user.name "lumen-e2e"
+          git config user.email "lumen-e2e@users.noreply.github.com"
+          npm run live
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-e2e-report
+          path: evidence/live-e2e/
