@@ -68,7 +68,7 @@ cd e2e
 npm run live
 ```
 
-It takes about 30 to 45 minutes, mostly waiting for deadlines and for the validators. It will:
+It takes about 45 to 75 minutes, mostly waiting for deadlines and for the validators. The Studionet RPC refuses more than 30 requests a minute, so the run keeps to 24 (`E2E_RPC_PER_MIN`) and looks up a pending transaction every 15 seconds (`E2E_POLL_SECS`); a request that is refused anyway is repeated after a pause. It will:
 
 1. check the fixture pages;
 2. create one account per role (kept in `e2e/.accounts.json`, which is git-ignored) and fund them with the Studio faucet. If the faucet refuses, it prints the addresses and waits for you to fund them;
