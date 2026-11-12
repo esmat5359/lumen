@@ -52,7 +52,9 @@ export function readConfig(env = process.env, cwd = process.cwd()) {
   return {
     scenarios: SCENARIOS.filter((s) => list.includes(s)),
     address: env.LUMEN_ADDRESS || "",
-    deadlineSecs: int("E2E_DEADLINE_SECS", 240, 60, 3600),
+    deadlineSecs: int("E2E_DEADLINE_SECS", 900, 60, 3600),
+    rpcPerMinute: int("E2E_RPC_PER_MIN", 24, 1, 600),
+    pollSecs: int("E2E_POLL_SECS", 15, 1, 120),
     fundGen: gen(env.E2E_FUND_GEN || "1"),
     stake: gen(env.E2E_STAKE_GEN || "0.4"),
     faith: gen(env.E2E_FAITH_GEN || "0.1"),

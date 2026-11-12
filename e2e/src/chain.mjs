@@ -6,6 +6,8 @@ import { fmt } from "./oracle.mjs";
 
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export const replacer = (_k, v) => (typeof v === "bigint" ? v.toString() : v);
+// How often a pending transaction is looked up. Every lookup is a request, and the RPC allows 30 a minute in all.
+export const POLL_MS = Math.max(1, Number(process.env.E2E_POLL_SECS) || 15) * 1000;
 export const RPC_URL = studionet?.rpcUrls?.default?.http?.[0];
 
 export class Network {
@@ -254,7 +256,7 @@ export class Lumen {
     const fees = await quoteFees(client, call);
     const startedAt = Date.now();
     const hash = await client.writeContract(fees ? { ...call, fees } : call);
-    const opts = { hash, retries: 600, interval: 3000 };
+    const opts = { hash, retries: 600, interval: POLL_MS };
     const receipt = typeof client.waitForDecision === "function" ? await client.waitForDecision(opts) : await client.waitForTransactionReceipt({ ...opts, status: "ACCEPTED" });
     const ok = successful(receipt);
     const text = receiptText(receipt);
@@ -268,7 +270,7 @@ export class Lumen {
   /** The transfer a claim emits is delivered when the claim transaction finalizes, so wait for that as well. */
   async untilFinal(actor, step) {
     const client = this.client(actor);
-    const opts = { hash: step.hash, retries: 600, interval: 3000 };
+    const opts = { hash: step.hash, retries: 600, interval: POLL_MS };
     const r = typeof client.waitForFinalization === "function" ? await client.waitForFinalization(opts) : await client.waitForTransactionReceipt({ ...opts, status: "FINALIZED" });
     step.finalized = outcome(r).status;
     this.rec.log(`  finalized [${step.scenario}] ${step.fn} by ${actor.name}: ${step.finalized}`);
@@ -282,7 +284,7 @@ export async function deploy(net, actor, codePath, recorder) {
   const fees = await quoteFees(client, { functionName: "constructor" }).catch(() => undefined);
   const started = Date.now();
   const hash = await client.deployContract({ code, args: [], ...(fees ? { fees } : {}) });
-  const opts = { hash, retries: 600, interval: 3000 };
+  const opts = { hash, retries: 600, interval: POLL_MS };
   const receipt = typeof client.waitForDecision === "function" ? await client.waitForDecision(opts) : await client.waitForTransactionReceipt({ ...opts, status: "ACCEPTED" });
   const ok = successful(receipt);
   const address = receipt?.txDataDecoded?.contractAddress ?? receipt?.data?.contract_address ?? receipt?.recipient ?? receipt?.to_address;

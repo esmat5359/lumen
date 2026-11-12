@@ -48,7 +48,8 @@ differed from the expected one.
 |---|---|---|
 | `E2E_SCENARIOS` | all | comma separated subset, for example `adversarial,retract` |
 | `LUMEN_ADDRESS` | deploy a new one | use an existing v2 contract |
-| `E2E_DEADLINE_SECS` | 240 | seconds from now to the deadline of the kept and broken vows (60 to 3600) |
+| `E2E_RPC_PER_MIN`, `E2E_POLL_SECS` | 24, 15 | the RPC refuses more than 30 requests a minute; the runner keeps to this many and looks up a pending transaction this often |
+| `E2E_DEADLINE_SECS` | 900 | seconds from now to the deadline of the kept and broken vows (60 to 3600) |
 | `E2E_STAKE_GEN`, `E2E_FAITH_GEN`, `E2E_DOUBT_GEN` | 0.4, 0.1, 0.06 | amounts in GEN |
 | `E2E_FUND_GEN` | 1 | balance every account must have |
 | `E2E_FUND_WAIT_SECS` | 600 | how long to wait for outside funding |

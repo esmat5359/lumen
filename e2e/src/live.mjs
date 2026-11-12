@@ -9,7 +9,8 @@
 import { execFileSync } from "node:child_process";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Lumen, Network, deploy, ensureFunded, loadAccounts, sleep } from "./chain.mjs";
+import { installThrottle } from "./throttle.mjs";
+import { Lumen, Network, RPC_URL, deploy, ensureFunded, loadAccounts, sleep } from "./chain.mjs";
 import { readConfig } from "./config.mjs";
 import { fmt } from "./oracle.mjs";
 import { Recorder, stamp } from "./report.mjs";
@@ -58,6 +59,9 @@ if (cfg.fixtures.permalinkBase) {
     cfg.fixtures.permalinkBase = "";
   }
 }
+
+// The RPC allows 30 requests a minute; keep below that for every call this process makes to it.
+installThrottle(RPC_URL, cfg.rpcPerMinute);
 
 // ---- 2. network, accounts, funding -----------------------------------------------------------------------------
 
