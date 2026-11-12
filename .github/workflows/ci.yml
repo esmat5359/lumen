@@ -1,0 +1,57 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Lint the contract
+        run: genvm-lint check contracts/lumen.py
+      - name: Unit, adversarial and model-based tests (direct mode)
+        run: python -m pytest -q
+        env:
+          LUMEN_FUZZ_SEEDS: "12"
+
+  runner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: npm --prefix e2e ci
+      - name: Tests of the live runner
+        run: npm --prefix e2e test
+      - name: Rehearsal of the live runner against the real contract (not a live run)
+        run: npm --prefix e2e run check
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm --prefix frontend ci
+      - name: Typecheck, payout and evidence checks, build
+        run: npm --prefix frontend run check
+      - name: Browser smoke test (every page, desktop and phone width)
+        working-directory: frontend
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+          npm run smoke
