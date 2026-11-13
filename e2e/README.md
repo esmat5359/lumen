@@ -31,7 +31,7 @@ Scenarios
 
 | name | what it proves |
 |---|---|
-| `adversarial` | 29 calls the contract has to refuse (each with its reason, and with the ledger unchanged), five progress notes and the refusal of a sixth, a retraction with its accounting, a vow with backing that cannot be retracted |
+| `adversarial` | 29 calls the contract has to refuse (each with its reason, and with the vow it names unchanged), five progress notes and the refusal of a sixth, a retraction with its accounting, a vow with backing that cannot be retracted |
 | `kept` | make, back (faith and doubt), note, pin a commit-pinned link, deadline, judge, review window, finalize, claim: payouts equal the rules, GEN arrives, the record and tier update |
 | `broken` | the same cycle for a vow whose evidence shows nothing; the doubter submits counter-evidence; the doubter is paid, the keeper and the faith backer are not |
 | `retract` | a keeper takes an unbacked vow back; 20% is burned, the rest is claimed |

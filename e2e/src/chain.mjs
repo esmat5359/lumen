@@ -173,6 +173,11 @@ async function quoteFees(client, call) {
 const outcome = (r) => ({ status: r?.statusName ?? null, execution: r?.txExecutionResultName ?? null });
 export const successful = (r) => (typeof sdk.isSuccessful === "function" ? sdk.isSuccessful(r) : !String(r?.txExecutionResultName ?? "").includes("ERROR"));
 
+/** True when a receipt text reports a failed execution (an error result or a rolled-back call). */
+export function receiptFailed(text) {
+  return /"execution_result"\s*:\s*"ERROR"|"txExecutionResultName"\s*:\s*"FINISHED_WITH_ERROR"|"status"\s*:\s*"(?:rollback|user_error|contract_error|vm_error)"/i.test(String(text ?? ""));
+}
+
 /** Text of everything a receipt says, to look for a revert reason in. */
 export function receiptText(r) {
   try {
@@ -197,12 +202,12 @@ export class Lumen {
     return this.clients.get(actor.address);
   }
 
-  async read(fn, args = []) {
+  async read(fn, args = [], tries = 4) {
     for (let i = 0; ; i++) {
       try {
         return JSON.parse(String(await this.reader.readContract({ address: this.address, functionName: fn, args })));
       } catch (e) {
-        if (i >= 3) throw e;
+        if (i >= tries - 1) throw e;
         await sleep(2000 * (i + 1));
       }
     }
@@ -220,12 +225,28 @@ export class Lumen {
   }
 
   /**
+   * What a refused call must leave alone. Scenarios run side by side, so the global totals move for other reasons;
+   * what one scenario can check is the vow the call names (its first argument) or, for make_vow, the caller's own vows.
+   */
+  async scope(fn, args, actor) {
+    const ask = async (name, a) => {
+      try {
+        return JSON.stringify(await this.read(name, a, 1));
+      } catch (e) {
+        return `(${String(e?.message ?? e).split("\n")[0].slice(0, 80)})`;
+      }
+    };
+    if (fn === "make_vow") return { what: `the vows of ${actor.name}`, state: await ask("vows_of", [actor.address, -1, 50]) };
+    return { what: `vow #${args[0]}`, state: await ask("get_vow", [args[0]]) };
+  }
+
+  /**
    * Sends a call that the contract has to reject. Passes when the transaction is not successful (or is refused
    * before it is sent) and, when the network exposes the reason, when the reason contains `reason`.
    */
   async expectRevert(scenario, actor, fn, args, value, reason, label) {
     const balanceBefore = await this.net.balanceOf(actor.address);
-    const before = await this.read("stats");
+    const before = await this.scope(fn, args, actor);
     let step;
     let refusedEarly = "";
     try {
@@ -234,18 +255,22 @@ export class Lumen {
       refusedEarly = String(e?.message ?? e);
       if (/timed? ?out|fetch failed|ECONN|ENOTFOUND|EAI_AGAIN|socket hang up/i.test(refusedEarly)) throw e; // a network problem is not a rejection
     }
-    const after = await this.read("stats");
-    const rejected = refusedEarly ? true : !step.ok;
+    const after = await this.scope(fn, args, actor);
     const text = refusedEarly || (step ? step.receiptText : "");
     const gave = refusedEarly || step?.reason || "";
     const reasonSeen = text.toLowerCase().includes(reason.toLowerCase());
-    const ledgerSame = before.deposited === after.deposited && before.total === after.total && before.rev === after.rev;
-    this.rec.check(scenario, `${label}: rejected`, rejected, rejected ? (refusedEarly ? "refused before it was sent" : `${step.status} / ${step.execution}`) : "the contract ACCEPTED a call it must reject", "behavior");
+    // This SDK version does not always name the execution result, so a refusal is also recognised by the receipt itself:
+    // an error result, or the contract's own refusal text.
+    const marked = step ? receiptFailed(step.receiptText) : false;
+    const rejected = refusedEarly ? true : !step.ok || marked || reasonSeen;
+    const how = refusedEarly ? "refused before it was sent" : !step.ok ? `${step.status} / ${step.execution}` : marked ? "the receipt reports an error result" : reasonSeen ? "the receipt carries the contract's refusal text" : "";
+    const ledgerSame = before.state === after.state;
+    this.rec.check(scenario, `${label}: rejected`, rejected, rejected ? how : "the contract ACCEPTED a call it must reject", "behavior");
     if (reasonSeen) this.reasonsSeen++;
     // Whether a mismatch fails the run depends on whether this network shows revert reasons at all; that is known
     // once every call has been made (Recorder.settleDeferred).
     this.rec.check(scenario, `${label}: reason is "${reason}"`, reasonSeen, reasonSeen ? "reason found in the receipt" : `receipt says: ${(gave || "(no reason text)").slice(0, 160)}`, "behavior", "defer");
-    this.rec.check(scenario, `${label}: ledger untouched`, ledgerSame, ledgerSame ? `deposited ${before.deposited}, vows ${before.total}, rev ${before.rev}` : `before ${JSON.stringify(before)} after ${JSON.stringify(after)}`, "invariant");
+    this.rec.check(scenario, `${label}: state untouched`, ledgerSame, ledgerSame ? `${before.what} is unchanged` : `${before.what}: before ${before.state.slice(0, 300)} after ${after.state.slice(0, 300)}`, "invariant");
     if (step) step.balanceBefore = balanceBefore.toString();
     return { rejected, reasonSeen, step };
   }

@@ -51,3 +51,13 @@ test("other hosts are not slowed down or inspected", async () => {
   assert.equal(c.now(), 0);
   assert.equal(f.stats.sent, 0);
 });
+
+import { receiptFailed } from "../src/chain.mjs";
+
+test("a receipt is read as failed when it carries an error result or a rollback", () => {
+  assert.equal(receiptFailed('{"consensus_data":{"leader_receipt":[{"execution_result":"ERROR"}]}}'), true);
+  assert.equal(receiptFailed('{"result":{"status":"rollback","payload":"x"}}'), true);
+  assert.equal(receiptFailed('{"txExecutionResultName":"FINISHED_WITH_ERROR"}'), true);
+  assert.equal(receiptFailed('{"consensus_data":{"leader_receipt":[{"execution_result":"SUCCESS"}]}}'), false);
+  assert.equal(receiptFailed(""), false);
+});
